@@ -3,63 +3,109 @@
 #include <string.h>
 #include <spidev_lib++.h>
 #include <unistd.h>
+#include <wiringPi.h>
 
-spi_config_t ADS_spi_config;
-uint8_t tx_buffer[3];
-uint8_t rx_buffer[3];
+const char *usage = "ADS7846_X11_daemon usage:\n"
+					"\t-h - this help\n"
+					"\t-s - set spi device path (default: '/dev/spidev0.0')\n"
+					"\t-c - calibration mode"
+					;
 
-int  main( void)
+SPI* spiHandler = NULL;
+char* spiPath = "/dev/spidev0.0";
+
+int openSPIconnection(char* spiName)
 {
-  SPI *ADS_SPI = NULL;
+	spi_config_t spiConfig;
+	
+	spiConfig.mode=0;
+	spiConfig.speed=1000000;
+	spiConfig.delay=0;
+	spiConfig.bits_per_word=8;
+	
+	spiHandler = new SPI(spiName, &spiConfig);
+	
+	return spiHandler->begin();
+}
 
-  ADS_spi_config.mode=0;
-  ADS_spi_config.speed=1000000;
-  ADS_spi_config.delay=0;
-  ADS_spi_config.bits_per_word=8;
+uint8_t spiTxBuffer[3];
+uint8_t spiRxBuffer[3];
 
-  ADS_SPI=new SPI("/dev/spidev0.0",&ADS_spi_config);
-
-  if (ADS_SPI->begin())
-  {
-	printf("Beginned\n");
-    memset(tx_buffer,0,3);
-    memset(rx_buffer,0,3);
-    
+int getXYdata(int &Xts, int &Yts)
+{
+	memset(spiTxBuffer,0,3);
+	memset(spiRxBuffer,0,3);
+	
 	const uint8_t poll_commands[4] = {0xD0, 0x90};
 	uint16_t values[2];	
-
-	while(1)
-	{
-		for(int i=0; i<2; i++)
-		{
-			tx_buffer[0] = poll_commands[i];
-			ADS_SPI->xfer(tx_buffer,3,rx_buffer,3);
-			
-			values[i] = ((rx_buffer[1] << 8) | rx_buffer[2] ) >> 3;
-		}
-		
-		//printf("Data send: 0x%02X 0x%02X 0x%02X\n", tx_buffer[0], tx_buffer[1], tx_buffer[2]);
-		//printf("Data received: 0x%02X 0x%02X 0x%02X\n", rx_buffer[0], rx_buffer[1], rx_buffer[2]);
-		
-		float Xts = (float)values[0];
-		float Yts = (float)values[1];
-		
-		float Xscr = -0.0095 * Xts + 0.5346 * Yts - 550.0317;
-		float Yscr = 0.3056 * Xts + 0.0047 * Yts - 322.8494;		
-		
-		printf("X: %f ; Y: %f -> Xscr: %f ; Yscr: %f \n", Xts, Yts, Xscr, Yscr);
-		
 	
+	for(int i=0; i<2; i++)
+	{
+		spiTxBuffer[0] = poll_commands[i];
+		spiHandler->xfer(spiTxBuffer,3,spiRxBuffer,3);
 		
-		
-		sleep(1);
-		//usleep(10000);
+		values[i] = ((spiRxBuffer[1] << 8) | spiRxBuffer[2] ) >> 3;
 	}
 	
-    delete ADS_SPI; 
-  }else
-  {
-  printf("SPI not connected");
-  }
- return 1;
+	Xts = values[0];
+	Yts = values[1];
+	
+	return 1;
+}
+
+
+int main(int argc, char *argv[])
+{
+	if(argc > 1)
+	{
+		for(int i = 1; i < argc; i++)
+		{
+			if(strcmp("-h", argv[i]) == 0)
+			{
+				printf("%d: %s", argc, usage);
+				return 0;
+			}
+			
+			if(strcmp("-s", argv[i]) == 0)
+			{
+				if(argc > i)
+				{
+					spiPath = argv[i+1];
+					i++;
+				}
+			}
+		}
+	}
+
+	if (openSPIconnection(spiPath))
+	{
+		printf("Beginned\n");
+
+		while(1)
+		{
+			int Xts, Yts;
+			
+			getXYdata(Xts, Yts);
+			
+			int Xscr = -0.0095 * (float)Xts + 0.5346 * (float)Yts - 550.0317;
+			int Yscr = 0.3056 * (float)Xts + 0.0047 * (float)Yts - 322.8494;		
+			
+			printf("X: %d ; Y: %d -> Xscr: %d ; Yscr: %d \n", Xts, Yts, Xscr, Yscr);
+			
+		
+			
+			
+			sleep(1);
+			//usleep(10000);
+		}
+	
+	delete spiHandler; 
+	
+	}else
+	{
+		printf("SPI not connected \n");
+		return 0;
+	}
+	
+	return 1;
 }
