@@ -1,18 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <spidev_lib++.h>
 #include <unistd.h>
+
+#include <spidev_lib++.h>
 #include <wiringPi.h>
 
-const char *usage = "ADS7846_X11_daemon usage:\n"
-					"\t-h - this help\n"
-					"\t-s - set spi device path (default: '/dev/spidev0.0')\n"
-					"\t-c - calibration mode"
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/extensions/XTest.h>
+
+const char *usage = "ADS7846_X11_daemon usage:\n\n"
+					"ADS7846_X11_daemon [<property> <argument>]\n\n"
+					"\t-h --help - this help\n"
+					"\t--cal     - calibration mode"
+					"\t--spi     - set spi device path (default: '/dev/spidev0.0')\n"
+					"\t--pin     - set interrupt pin in wiringPi gpio space (default: 6)"
+					"\t--disp    - specify display in X11 (default ':0.0'), use system '$ w' command to specify "
+					
 					;
 
 SPI* spiHandler = NULL;
 char* spiPath = "/dev/spidev0.0";
+char* screenName = ":0.0";
+int irqPin = 6;
+
+Display *display;
 
 int openSPIconnection(char* spiName)
 {
@@ -28,31 +41,42 @@ int openSPIconnection(char* spiName)
 	return spiHandler->begin();
 }
 
-uint8_t spiTxBuffer[3];
-uint8_t spiRxBuffer[3];
+uint8_t spiTxBuffer[5] = {0xD0, 0x00, 0x90, 0x00, 0x00};
+uint8_t spiRxBuffer[5];
 
-int getXYdata(int &Xts, int &Yts)
+int getXYdata(int &Xres, int &Yres)
 {
-	memset(spiTxBuffer,0,3);
-	memset(spiRxBuffer,0,3);
+	memset(spiRxBuffer,0,5);
 	
-	const uint8_t poll_commands[4] = {0xD0, 0x90};
-	uint16_t values[2];	
-	
-	for(int i=0; i<2; i++)
-	{
-		spiTxBuffer[0] = poll_commands[i];
-		spiHandler->xfer(spiTxBuffer,3,spiRxBuffer,3);
+	spiHandler->xfer(spiTxBuffer,5,spiRxBuffer,5);
 		
-		values[i] = ((spiRxBuffer[1] << 8) | spiRxBuffer[2] ) >> 3;
-	}
-	
-	Xts = values[0];
-	Yts = values[1];
+	Xres = ((spiRxBuffer[1] << 8) | spiRxBuffer[2] ) >> 3;
+	Yres = ((spiRxBuffer[3] << 8) | spiRxBuffer[4] ) >> 3;
 	
 	return 1;
 }
 
+int Xres, Yres;
+
+void penInterrupt(void) 
+{
+	usleep(1000);
+	
+	getXYdata(Xres, Yres);
+	
+	if(digitalRead(irqPin) && (Xres == 0x000) && (Yres == 0xFFF))
+	{
+		printf("Pen up\n");
+		XTestFakeButtonEvent(display, 1, False, CurrentTime); 
+		XFlush(display);
+	}else if((Xres > 0x000) && (Yres < 0xFFF))
+	{
+		printf("Pen down\n"); 
+		XTestFakeButtonEvent(display, 1, True, CurrentTime);
+		XFlush(display);
+	}
+	
+}
 
 int main(int argc, char *argv[])
 {
@@ -60,13 +84,13 @@ int main(int argc, char *argv[])
 	{
 		for(int i = 1; i < argc; i++)
 		{
-			if(strcmp("-h", argv[i]) == 0)
+			if((strcmp("--help", argv[i]) == 0) || (strcmp("-h", argv[i]) == 0)) //help
 			{
-				printf("%d: %s", argc, usage);
+				printf("%s", usage);
 				return 0;
 			}
 			
-			if(strcmp("-s", argv[i]) == 0)
+			if(strcmp("--spi", argv[i]) == 0) //spi path
 			{
 				if(argc > i)
 				{
@@ -74,16 +98,48 @@ int main(int argc, char *argv[])
 					i++;
 				}
 			}
+			
+			if(strcmp("--pin", argv[i]) == 0) //irq pin in wiringPi gpio space
+			{
+				if(argc > i)
+				{
+					irqPin = atoi(argv[i+1]);
+					i++;
+				}
+			}
+			
+			if(strcmp("--disp", argv[i]) == 0) //X11 display address
+			{
+				if(argc > i)
+				{
+					screenName = argv[i+1];
+					i++;
+				}
+			}
 		}
 	}
 
+	
+	
 	if (openSPIconnection(spiPath))
 	{
-		printf("Beginned\n");
-
+		display = XOpenDisplay(screenName);		
+		
+		if(!display)
+		{
+			printf("Error connecting to X11 server");
+			return 0;
+		}	
+		
+		wiringPiSetup();
+		wiringPiISR(irqPin, INT_EDGE_BOTH, &penInterrupt);		
+		
+		printf("Running...\n");
+		
 		while(1)
 		{
-			int Xts, Yts;
+			fflush (stdout) ;
+			/*int Xts, Yts;
 			
 			getXYdata(Xts, Yts);
 			
@@ -91,15 +147,11 @@ int main(int argc, char *argv[])
 			int Yscr = 0.3056 * (float)Xts + 0.0047 * (float)Yts - 322.8494;		
 			
 			printf("X: %d ; Y: %d -> Xscr: %d ; Yscr: %d \n", Xts, Yts, Xscr, Yscr);
-			
-		
-			
-			
-			sleep(1);
-			//usleep(10000);
+			*/
 		}
 	
-	delete spiHandler; 
+		delete spiHandler;
+		XCloseDisplay(display); 
 	
 	}else
 	{

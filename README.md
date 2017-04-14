@@ -25,5 +25,5 @@ make
 
 For help use:
 ```
-./build/ADS7846_X11_daemon -h
+./build/ADS7846_X11_daemon --help
 ```	
