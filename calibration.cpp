@@ -1,4 +1,5 @@
 /*
+ *   Modification by Tomasz Mankowski 2017
  *
  *   Copyright (c) 2001, Carlos E. Vidales. All rights reserved.
  *
@@ -17,79 +18,66 @@
  *    that you changed the file(s) and the date of any change,
  *    and that you do not charge any royalties or licenses for
  *    its use.
- *
- *  Modification by Tomasz Mankowski 2017
 */
 
 #include "calibration.h"
 
-int setCalibrationMatrix( point * displayPtr,
-                          point * screenPtr,
-                          calibMatrix * matrixPtr)
+int calibration::setCalibrationMatrix( point * displayPtr, point * screenPtr)
 {
+    int  retValue = 1;
 
-    int  retValue = OK ;
+    matrix.Divider = (((int64_t)screenPtr[0].x() - (int64_t)screenPtr[2].x()) * ((int64_t)screenPtr[1].y() - (int64_t)screenPtr[2].y())) -
+                     (((int64_t)screenPtr[1].x() - (int64_t)screenPtr[2].x()) * ((int64_t)screenPtr[0].y() - (int64_t)screenPtr[2].y())) ;
 
-
-
-    matrixPtr->Divider = (((int64_t)screenPtr[0].x - (int64_t)screenPtr[2].x) * ((int64_t)screenPtr[1].y - (int64_t)screenPtr[2].y)) -
-                         (((int64_t)screenPtr[1].x - (int64_t)screenPtr[2].x) * ((int64_t)screenPtr[0].y - (int64_t)screenPtr[2].y)) ;
-
-    if( matrixPtr->Divider == 0 )
+    if( matrix.Divider == 0 )
     {
-        retValue = NOT_OK ;
+        retValue = 0;
     }
     else
     {
-        matrixPtr->An = (((int64_t)displayPtr[0].x - (int64_t)displayPtr[2].x) * ((int64_t)screenPtr[1].y - (int64_t)screenPtr[2].y)) -
-                        (((int64_t)displayPtr[1].x - (int64_t)displayPtr[2].x) * ((int64_t)screenPtr[0].y - (int64_t)screenPtr[2].y)) ;
+        matrix.An = (((int64_t)displayPtr[0].x() - (int64_t)displayPtr[2].x()) * ((int64_t)screenPtr[1].y() - (int64_t)screenPtr[2].y())) -
+                    (((int64_t)displayPtr[1].x() - (int64_t)displayPtr[2].x()) * ((int64_t)screenPtr[0].y() - (int64_t)screenPtr[2].y())) ;
 
-        matrixPtr->Bn = (((int64_t)screenPtr[0].x - (int64_t)screenPtr[2].x) * ((int64_t)displayPtr[1].x - (int64_t)displayPtr[2].x)) -
-                        (((int64_t)displayPtr[0].x - (int64_t)displayPtr[2].x) * ((int64_t)screenPtr[1].x - (int64_t)screenPtr[2].x)) ;
+        matrix.Bn = (((int64_t)screenPtr[0].x() - (int64_t)screenPtr[2].x()) * ((int64_t)displayPtr[1].x() - (int64_t)displayPtr[2].x())) -
+                    (((int64_t)displayPtr[0].x() - (int64_t)displayPtr[2].x()) * ((int64_t)screenPtr[1].x() - (int64_t)screenPtr[2].x())) ;
 
-        matrixPtr->Cn = ((int64_t)screenPtr[2].x * (int64_t)displayPtr[1].x - (int64_t)screenPtr[1].x * (int64_t)displayPtr[2].x) * (int64_t)screenPtr[0].y +
-                        ((int64_t)screenPtr[0].x * (int64_t)displayPtr[2].x - (int64_t)screenPtr[2].x * (int64_t)displayPtr[0].x) * (int64_t)screenPtr[1].y +
-                        ((int64_t)screenPtr[1].x * (int64_t)displayPtr[0].x - (int64_t)screenPtr[0].x * (int64_t)displayPtr[1].x) * (int64_t)screenPtr[2].y ;
+        matrix.Cn = ((int64_t)screenPtr[2].x() * (int64_t)displayPtr[1].x() - (int64_t)screenPtr[1].x() * (int64_t)displayPtr[2].x()) * (int64_t)screenPtr[0].y() +
+                    ((int64_t)screenPtr[0].x() * (int64_t)displayPtr[2].x() - (int64_t)screenPtr[2].x() * (int64_t)displayPtr[0].x()) * (int64_t)screenPtr[1].y() +
+                    ((int64_t)screenPtr[1].x() * (int64_t)displayPtr[0].x() - (int64_t)screenPtr[0].x() * (int64_t)displayPtr[1].x()) * (int64_t)screenPtr[2].y() ;
 
-        matrixPtr->Dn = (((int64_t)displayPtr[0].y - (int64_t)displayPtr[2].y) * ((int64_t)screenPtr[1].y - (int64_t)screenPtr[2].y)) -
-                        (((int64_t)displayPtr[1].y - (int64_t)displayPtr[2].y) * ((int64_t)screenPtr[0].y - (int64_t)screenPtr[2].y)) ;
+        matrix.Dn = (((int64_t)displayPtr[0].y() - (int64_t)displayPtr[2].y()) * ((int64_t)screenPtr[1].y() - (int64_t)screenPtr[2].y())) -
+                    (((int64_t)displayPtr[1].y() - (int64_t)displayPtr[2].y()) * ((int64_t)screenPtr[0].y() - (int64_t)screenPtr[2].y())) ;
 
-        matrixPtr->En = (((int64_t)screenPtr[0].x - (int64_t)screenPtr[2].x) * ((int64_t)displayPtr[1].y - (int64_t)displayPtr[2].y)) -
-                        (((int64_t)displayPtr[0].y - (int64_t)displayPtr[2].y) * ((int64_t)screenPtr[1].x - (int64_t)screenPtr[2].x)) ;
+        matrix.En = (((int64_t)screenPtr[0].x() - (int64_t)screenPtr[2].x()) * ((int64_t)displayPtr[1].y() - (int64_t)displayPtr[2].y())) -
+                    (((int64_t)displayPtr[0].y() - (int64_t)displayPtr[2].y()) * ((int64_t)screenPtr[1].x() - (int64_t)screenPtr[2].x())) ;
 
-        matrixPtr->Fn = ((int64_t)screenPtr[2].x * (int64_t)displayPtr[1].y - (int64_t)screenPtr[1].x * (int64_t)displayPtr[2].y) * (int64_t)screenPtr[0].y +
-                        ((int64_t)screenPtr[0].x * (int64_t)displayPtr[2].y - (int64_t)screenPtr[2].x * (int64_t)displayPtr[0].y) * (int64_t)screenPtr[1].y +
-                        ((int64_t)screenPtr[1].x * (int64_t)displayPtr[0].y - (int64_t)screenPtr[0].x * (int64_t)displayPtr[1].y) * (int64_t)screenPtr[2].y ;
+        matrix.Fn = ((int64_t)screenPtr[2].x() * (int64_t)displayPtr[1].y() - (int64_t)screenPtr[1].x() * (int64_t)displayPtr[2].y()) * (int64_t)screenPtr[0].y() +
+                    ((int64_t)screenPtr[0].x() * (int64_t)displayPtr[2].y() - (int64_t)screenPtr[2].x() * (int64_t)displayPtr[0].y()) * (int64_t)screenPtr[1].y() +
+                    ((int64_t)screenPtr[1].x() * (int64_t)displayPtr[0].y() - (int64_t)screenPtr[0].x() * (int64_t)displayPtr[1].y()) * (int64_t)screenPtr[2].y() ;
     }
 
-    return( retValue ) ;
-
+    return(retValue) ;
 }
 
-int getDisplayPoint( point * displayPtr,
-                     point * screenPtr,
-                     calibMatrix * matrixPtr )
+point calibration::getDisplayPoint(point &screenPtr)
 {
-    int  retValue = OK ;
-
-
-    if( matrixPtr->Divider != 0 )
+    int32_t x, y;
+	if( matrix.Divider != 0 )
     {
-        displayPtr->x = ( (matrixPtr->An * (int64_t)screenPtr->x) +
-                          (matrixPtr->Bn * (int64_t)screenPtr->y) +
-                           matrixPtr->Cn
-                        ) / matrixPtr->Divider ;
+        x = ((matrix.An * (int64_t)screenPtr.x()) +
+             (matrix.Bn * (int64_t)screenPtr.y()) +
+              matrix.Cn
+            ) / matrix.Divider ;
 
-        displayPtr->y = ( (matrixPtr->Dn * (int64_t)screenPtr->x) +
-                          (matrixPtr->En * (int64_t)screenPtr->y) +
-                           matrixPtr->Fn
-                        ) / matrixPtr->Divider ;
+        y = ((matrix.Dn * (int64_t)screenPtr.x()) +
+             (matrix.En * (int64_t)screenPtr.y()) +
+              matrix.Fn
+            ) / matrix.Divider ;				 
     }
     else
     {
-        retValue = NOT_OK ;
+        return point(0,0);
     }
 
-    return( retValue ) ;
-
+    return point(x,y);
 }

@@ -1,4 +1,5 @@
 /*
+ *   Modification by Tomasz Mankowski 2017
  *
  *   Copyright (c) 2001, Carlos E. Vidales. All rights reserved.
  *
@@ -17,8 +18,6 @@
  *    that you changed the file(s) and the date of any change,
  *    and that you do not charge any royalties or licenses for
  *    its use.
- *
- *  Modification by Tomasz Mankowski 2017
  */
 
 #ifndef _CALIBRATE_H_
@@ -27,35 +26,29 @@
 #include <math.h>
 #include <stdint.h>
 
-#ifndef		OK
-    #define		OK		        0
-    #define		NOT_OK		   -1
-#endif
+#include "point.h"
 
-struct point 
+class calibration
 {
-	int32_t x;
-    int32_t y;
+	struct calibMatrix 
+	{
+		int64_t    An,     /* A = An/Divider */
+				   Bn,     /* B = Bn/Divider */
+				   Cn,     /* C = Cn/Divider */
+				   Dn,     /* D = Dn/Divider */
+				   En,     /* E = En/Divider */
+				   Fn,     /* F = Fn/Divider */
+				   Divider;
+	};
+	
+public:
+	calibration() {};
+	
+	int setCalibrationMatrix(point *display, point *screen) ;
+	point getDisplayPoint(point &screenPtr) ;
+	
+private:
+	calibMatrix matrix;
 };
-
-struct calibMatrix 
-{
-	int64_t    An,     /* A = An/Divider */
-               Bn,     /* B = Bn/Divider */
-               Cn,     /* C = Cn/Divider */
-               Dn,     /* D = Dn/Divider */
-               En,     /* E = En/Divider */
-               Fn,     /* F = Fn/Divider */
-               Divider;
-};
-
-int setCalibrationMatrix( point * display,
-                                 point * screen,
-                                 calibMatrix * matrix) ;
-
-int getDisplayPoint( point * display,
-                            point * screen,
-                            calibMatrix * matrix ) ;
-
 
 #endif  /* _CALIBRATE_H_ */

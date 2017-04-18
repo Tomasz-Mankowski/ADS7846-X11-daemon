@@ -10,100 +10,33 @@ const char *usage = "ADS7846_X11_daemon usage:\n\n"
 					
 					;
 
-SPI* spiHandler = NULL;
-char* spiPath = "/dev/spidev0.0";
-char* screenName = ":0.0";
+
+char* spiPath = (char*)"/dev/spidev0.0";
+char* screenName = (char*)":0.0";
 int irqPin = 6;
-
-Display *display;
-
-int openSPIconnection(char* spiName)
-{
-	spi_config_t spiConfig;
-	
-	spiConfig.mode=0;
-	spiConfig.speed=50000;
-	spiConfig.delay=0;
-	spiConfig.bits_per_word=8;
-	
-	spiHandler = new SPI(spiName, &spiConfig);
-	
-	return spiHandler->begin();
-}
-
-uint8_t spiTxBuffer[5] = {0xD0, 0x00, 0x90, 0x00, 0x00};
-uint8_t spiRxBuffer[5];
-
-void getXYdata(point &resistance)
-{
-	memset(spiRxBuffer,0,5);
-	
-	spiHandler->xfer(spiTxBuffer,5,spiRxBuffer,5);
-		
-	resistance.x = ((spiRxBuffer[1] << 8) | spiRxBuffer[2] ) >> 3;
-	resistance.y = ((spiRxBuffer[3] << 8) | spiRxBuffer[4] ) >> 3;
-}
-
-
-void calculateScreenPosition(point &resistance, point &position)
-{
-	position.x = -0.0013 * (float)resistance.x + 0.2543 * (float)resistance.y - 0.6424;
-	position.y = -0.1543 * (float)resistance.x + 0.0009 * (float)resistance.y + 595.5163;	
-}
-
-void getAvaregeResistance(point &avResistance)
-{
-	#define READS_NUM 10
-	
-	point resistance;
-	
-	avResistance.x = 0;
-	avResistance.y = 0;
-	
-	for(int i=0; i<READS_NUM; i++)
-	{
-		getXYdata(resistance);
-		avResistance.x += resistance.x;
-		avResistance.y += resistance.y;
-		usleep(1000);
-	}
-	
-	avResistance.x = avResistance.x / READS_NUM;
-	avResistance.y = avResistance.y / READS_NUM;
-}
 
 void penInterrupt(void) 
 {
 	usleep(10000);
 	
-	//printf("INT\n");
+	point resistance = ads.getXYdata();
 	
-	point resistance;
-	
-	
-	getXYdata(resistance);
-	
-	if(digitalRead(irqPin) && (resistance.x == 0x000) && (resistance.y == 0xFFF))
+	if(digitalRead(irqPin) && resistance == point(0x000, 0xFFF))
 	{
 		printf("Pen up\n");
 		XTestFakeButtonEvent(display, 1, False, CurrentTime); 
 		XFlush(display);
-	}else if((resistance.x > 0x000) && (resistance.y < 0xFFF))
+	}else if((resistance.x() > 0x000) && (resistance.y() < 0xFFF))
 	{
 		printf("Pen down\n"); 
 		
-		//getAvaregeResistance(resistance);
-		getXYdata(resistance);
+		resistance = ads.getXYdata();
 		
-		point position;
+		point position = touchCalib.getDisplayPoint(resistance) ;
 		
-		//calculateScreenPosition(resistance, position);
-		
-		getDisplayPoint( &position, &resistance, &matrix ) ;
-		
-		printf("Resistance: X: %d ; Y: %d\n", resistance.x, resistance.y);
-		printf("Position: X: %d ; Y: %d\n", position.x, position.y);
-		XTestFakeMotionEvent (display, 0, position.x, position.y, CurrentTime );
+		printf("Resistance: X: %d ; Y: %d\n", resistance.x(), resistance.y());
+		printf("Position: X: %d ; Y: %d\n", position.x(), position.y());
+		XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime );
 		XFlush(display);
 		
 		XTestFakeButtonEvent(display, 1, True, CurrentTime);
@@ -148,32 +81,20 @@ int main(int argc, char *argv[])
 	}
 	
 	point screenSample[3] =	{
-                                            { 3300, 620 },
-                                            { 570, 2014 },
-                                            { 1948, 3429 }
+                                            point(3300, 620),
+                                            point(570, 2014),
+                                            point(1948, 3429)
                                     } ;
 									
 	point displaySample[3] =	{
-                                            { 154,  90 },
-                                            { 512, 510 },
-                                            { 870, 300 }
+                                            point(154,  90),
+                                            point(512, 510),
+                                            point(870, 300)
                                     } ;
 									
-	setCalibrationMatrix( &displaySample[0], &screenSample[0], &matrix ) ;
+	touchCalib.setCalibrationMatrix(displaySample, screenSample) ;
 	
-	point position;
-	
-	for(int n = 0 ; n < 3 ; ++n )
-    {
-        getDisplayPoint( &position, &screenSample[n], &matrix ) ;
-        printf("  %d,%d      %d,%d       %d,%d\n",
-                screenSample[n].x,  screenSample[n].y,
-                position.x,          position.y,
-                displaySample[n].x, displaySample[n].y ) ;
-    }
-	
-	
-	if (openSPIconnection(spiPath))
+	if (ads.open(spiPath))
 	{
 		display = XOpenDisplay(screenName);		
 		
@@ -188,17 +109,11 @@ int main(int argc, char *argv[])
 		
 		printf("Running...\n");
 		
-		
-		
 		while(1)
 		{
-			fflush(stdout);
-			//getXYdata(position);
-			//printf("X: %d ; Y: %d\n", position.x, position.y);
-			//sleep(1);
+			//fflush(stdout);
 		}
 	
-		delete spiHandler;
 		XCloseDisplay(display); 
 	
 	}else
