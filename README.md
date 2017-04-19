@@ -10,7 +10,7 @@ WORK IN PROGRESS!
 
 Warning:
 --------
-When using Waveshare LDCs like http://www.waveshare.com/wiki/10.1inch_HDMI_LCD bare in mind rPi pinout incompatibility of OrangePi. Reroute CS pin to PC3 (SPI0_CS) of your OPI. 
+When using Waveshare LCDs like http://www.waveshare.com/wiki/10.1inch_HDMI_LCD bare in mind rPi pinout incompatibility of OrangePi. Reroute CS pin to PC3 (SPI0_CS) of your OPI. 
 
 How to:
 -------
