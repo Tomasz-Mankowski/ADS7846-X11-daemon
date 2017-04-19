@@ -3,7 +3,7 @@ Information:
 
 WORK IN PROGRESS! - TODO: calibration mode
 
-This is a linux user space daemon-driver for ADS7846 based touch screen. Daemon is intendet for Allwiner based devices like Orange Pi.
+This is a linux user space daemon-driver for ADS7846 based touch screen. Daemon is intended for Allwiner based devices like Orange Pi.
 Tested for Orange Pi PC Plus running Armbian.
 
 SPI communication is based on c++ wrapper created by Philippe Van Hecke - https://github.com/lephiloux/spidev-lib . 
