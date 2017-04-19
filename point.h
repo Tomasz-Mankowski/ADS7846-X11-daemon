@@ -13,7 +13,7 @@ public:
 	int32_t y() {return y_;}
 	
 	bool operator==(const point &p) { return (x_==p.x_) && (y_==p.y_); }
-	
+	bool operator!=(const point &p) { return (x_!=p.x_) || (y_!=p.y_); }
 private:
 	int32_t x_;
 	int32_t y_;

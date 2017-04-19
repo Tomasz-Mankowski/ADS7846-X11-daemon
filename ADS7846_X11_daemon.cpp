@@ -10,39 +10,48 @@ const char *usage = "ADS7846_X11_daemon usage:\n\n"
 					
 					;
 
-
 char* spiPath = (char*)"/dev/spidev0.0";
 char* screenName = (char*)":0.0";
 int irqPin = 6;
 
 void penInterrupt(void) 
 {
-	usleep(10000);
+	usleep(10000); //bruteforce debounce
 	
 	point resistance = ads.getXYdata();
 	
-	if(digitalRead(irqPin) && resistance == point(0x000, 0xFFF))
+	if( !digitalRead(irqPin) && resistance != point(0x000, 0xFFF) )
 	{
-		printf("Pen up\n");
-		XTestFakeButtonEvent(display, 1, False, CurrentTime); 
-		XFlush(display);
-	}else if((resistance.x() > 0x000) && (resistance.y() < 0xFFF))
-	{
-		printf("Pen down\n"); 
+		//printf("Pen down\n");
 		
-		resistance = ads.getXYdata();
+		point position = touchCalib.getDisplayPoint(resistance);
 		
-		point position = touchCalib.getDisplayPoint(resistance) ;
-		
-		printf("Resistance: X: %d ; Y: %d\n", resistance.x(), resistance.y());
-		printf("Position: X: %d ; Y: %d\n", position.x(), position.y());
+		//printf("Resistance: X: %d ; Y: %d\n", resistance.x(), resistance.y());
+		//printf("Position: X: %d ; Y: %d\n", position.x(), position.y());
 		XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime );
 		XFlush(display);
 		
 		XTestFakeButtonEvent(display, 1, True, CurrentTime);
 		XFlush(display);
+		
+		while( !digitalRead(irqPin) && resistance != point(0x000, 0xFFF) )
+		{
+			usleep(100000);
+			
+			if(!digitalRead(irqPin))
+			{
+				//printf("Pen holding\n");				
+				resistance = ads.getXYdata();
+				position = touchCalib.getDisplayPoint(resistance);
+				XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime);
+				XFlush(display);
+			}			
+		}
+		
+		//printf("Pen up\n");
+		XTestFakeButtonEvent(display, 1, False, CurrentTime); 
+		XFlush(display);
 	}
-	
 }
 
 int main(int argc, char *argv[])
@@ -93,6 +102,7 @@ int main(int argc, char *argv[])
                                     } ;
 									
 	touchCalib.setCalibrationMatrix(displaySample, screenSample) ;
+	
 	
 	if (ads.open(spiPath))
 	{

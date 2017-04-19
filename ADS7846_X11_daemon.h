@@ -10,6 +10,9 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XTest.h>
 
+#include <signal.h>
+#include <sys/time.h>
+
 #include "ADS7846.h"
 #include "calibration.h"
 #include "point.h"
