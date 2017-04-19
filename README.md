@@ -16,8 +16,10 @@ How to:
 -------
 
 Install WereCatf version of WiringOP for handling pin/pen interrupt:
+```
 https://github.com/WereCatf/WiringOP
-	
+```
+
 Run:
 ```
 make
