@@ -20,10 +20,10 @@ Install WereCatf version of WiringOP:
 Run:
 ```
 make
-./build/ADS7846_X11_daemon
+./build/ADS7846-X11
 ```
 
 For help use:
 ```
-./build/ADS7846_X11_daemon --help
+./build/ADS7846-X11 --help
 ```	
