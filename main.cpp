@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 	touchCalib.setCalibrationMatrix(displaySample, screenSample) ;
 	
 	
-	if (ads.open(spiPath))
+	if (ads.openCon(spiPath))
 	{
 		display = XOpenDisplay(screenName);		
 		
