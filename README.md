@@ -29,7 +29,7 @@ $ make
 $ ./build/ADS7846-X11
 ```
 
-Run it as service/daemon using
+Or run it as service/daemon using:
 ```
 $ nohup ./build/ADS7846-X11 > /dev/null 2>&1 &
 ```
