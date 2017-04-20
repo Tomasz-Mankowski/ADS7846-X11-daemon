@@ -1,6 +1,6 @@
 DEBUG = -O3
 CC = g++
-CFLAGS = $(DEBUG) -Wall
+CFLAGS = -std=c++11 $(DEBUG) -Wall
 
 LDLIBS = -lwiringPi -lpthread -lX11 -lXtst
 
