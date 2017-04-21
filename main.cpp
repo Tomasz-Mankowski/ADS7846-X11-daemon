@@ -17,6 +17,11 @@
 #include "point.h"
 
 Display *display;
+Window win;
+GC gc;
+unsigned int disp_w;
+unsigned int disp_h;
+int screen_num;
 calibration touchCalib;
 ADS7846 *ads = NULL;
 std::fstream *calibFile = NULL;
@@ -107,8 +112,19 @@ void handleCalibrationWait()
 {
 	usleep(100000);
 	currentWaitTime += 100000;
-	printf("\r%.1f s    ", (float)waitTime - (float)currentWaitTime / 1000000);	
-	fflush(stdout);
+	
+	XSetForeground(display, gc, WhitePixel(display, screen_num));
+	XFillRectangle(display, win, gc, disp_w/2+2*12, disp_h/2+2-24, 6*12, 24);
+	XFlush(display);
+	
+	char* str=NULL;
+	int len = asprintf(&str, "%.1f s", (float)waitTime - (float)currentWaitTime / 1000000);
+	if(len != -1)
+	{
+		XSetForeground(display, gc, BlackPixel(display, screen_num));
+		XDrawString(display, win, gc, disp_w/2+2*12, disp_h/2+2, str, len);
+		XFlush(display);
+	}
 	
 	if(waitTime*1000000 <= currentWaitTime)
 	{
@@ -182,9 +198,9 @@ int main(int argc, char *argv[])
 		closeApp();
 	}
 	
-	int screen_num = DefaultScreen(display);
-	unsigned int disp_w = DisplayWidth(display, screen_num);
-	unsigned int disp_h = DisplayHeight(display, screen_num);
+	screen_num = DefaultScreen(display);
+	disp_w = DisplayWidth(display, screen_num);
+	disp_h = DisplayHeight(display, screen_num);
 	
 	displayCalibPoints[0] = point(0.15*disp_w,  0.15*disp_h);
 	displayCalibPoints[1] = point(0.50*disp_w,  0.85*disp_h);
@@ -234,7 +250,7 @@ int main(int argc, char *argv[])
 	{
 		wiringPiSetup();
 		
-		if(!calibrationMode)
+		if(!calibrationMode) //operation mode
 		{
 			wiringPiISR(irqPin, INT_EDGE_BOTH, &penInterrupt);		
 			
@@ -246,13 +262,71 @@ int main(int argc, char *argv[])
 			}
 		}else //calibration mode
 		{
+			printf("%s: Calibrating...\n", argv[0]);
+		
 			pinMode(irqPin, INPUT);
+			
+			win = XCreateSimpleWindow(display, RootWindow(display, screen_num), 0, 0, disp_w, disp_h, 0, BlackPixel(display, screen_num), WhitePixel(display, screen_num));
+			Atom wm_state   = XInternAtom (display, "_NET_WM_STATE", 1);
+			Atom wm_fullscreen = XInternAtom (display, "_NET_WM_STATE_FULLSCREEN", 1);
+			XChangeProperty(display, win, wm_state, 4, 32, PropModeReplace, (unsigned char *)&wm_fullscreen, 1);
+			XMapWindow(display, win);
+			XFlush(display);
+			
+			XGCValues values;
+			gc = XCreateGC(display, win, 0, &values);
+			if (gc < 0) 
+			{
+				fprintf(stderr, "%s: Error creating GC for X11\n", argv[0]);
+				closeApp();
+			}
+
+			XSetForeground(display, gc, BlackPixel(display, screen_num));
+			XSetBackground(display, gc, WhitePixel(display, screen_num));
+ 
+			XSetLineAttributes(display, gc, 2, LineSolid, CapButt, JoinBevel);
+			XSetFillStyle(display, gc, FillSolid);
+			
+			Font font;
+			font = XLoadFont(display, "12x24");
+			if(font == BadAlloc || font == BadName)
+			{
+				fprintf(stderr, "%s: Could not load font 12x24\n", argv[0]);
+				closeApp();
+			}
+			XSetFont(display, gc, font);
+
+			XSync(display, False);
+
+			Pixmap bitmap;
+			unsigned int bitmap_w, bitmap_h;
+			int hotspot_x, hotspot_y;
+
+			int rc = XReadBitmapFile(display, win, "cross.xbm", &bitmap_w, &bitmap_h, &bitmap, &hotspot_x, &hotspot_y);
+			if(rc != BitmapSuccess)
+			{
+				fprintf(stderr, "%s: Error reading cross.xbm bitmap\n", argv[0]);
+				closeApp();
+			}
+			
+			XDrawString(display, win, gc, disp_w/2-28*6, disp_h/2-24, "Touch points to calibrate...", 28);
+			XDrawString(display, win, gc, disp_w/2-28*6, disp_h/2+2, "Remaining time:", 15);
+			XFlush(display);
 			
 			for(int i=0; i<3; i++)
 			{
-				currentWaitTime = 0;
+				XSetForeground(display, gc, BlackPixel(display, screen_num));
+				XCopyPlane(display, bitmap, win, gc, 0, 0, bitmap_w, bitmap_h, displayCalibPoints[i].x()-bitmap_w/2, displayCalibPoints[i].y()-bitmap_h/2, 1);
+				XFlush(display);
 				
-				printf("Remaining time: \n");
+				if(i > 0)
+				{
+					XSetForeground(display, gc, WhitePixel(display, screen_num));
+					XFillRectangle(display, win, gc, displayCalibPoints[i-1].x()-bitmap_w/2, displayCalibPoints[i-1].y()-bitmap_h/2, bitmap_w, bitmap_h);
+					XFlush(display);
+				}
+				
+				currentWaitTime = 0;
 				
 				while(digitalRead(irqPin))
 				{
@@ -271,9 +345,7 @@ int main(int argc, char *argv[])
 				{
 					handleCalibrationWait();
 				}				
-				usleep(10000);
-				
-				printf("\nPoint %d caught\n", i);
+				usleep(10000);	
 			}
 			
 			calibFile = new std::fstream(calibFileName, std::fstream::out);
@@ -286,7 +358,7 @@ int main(int argc, char *argv[])
 			for(int i=0; i<3; i++)
 			{
 				*calibFile << screenCalibPoints[i].x() << ";" << screenCalibPoints[i].y() << std::endl;
-			}
+			}		
 		}	
 		
 	}else
