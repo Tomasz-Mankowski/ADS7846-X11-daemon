@@ -13,10 +13,10 @@
 #include "point.h"
 
 typedef struct {
-    uint8_t mode;
-    uint8_t bits_per_word;
-    uint32_t speed;
-    uint16_t delay;
+	uint8_t mode;
+	uint8_t bits_per_word;
+	uint32_t speed;
+	uint16_t delay;
 } spi_config_t;
 
 class ADS7846
