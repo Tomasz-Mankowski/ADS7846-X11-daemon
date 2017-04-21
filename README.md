@@ -1,8 +1,6 @@
 Information:
 ------------
 
-WORK IN PROGRESS! - TODO: calibration mode
-
 This is a linux user space daemon-driver for ADS7846 based touch screen. Daemon is intended for Allwiner based devices like Orange Pi.
 Tested for Orange Pi PC Plus running Armbian.
 
@@ -23,9 +21,18 @@ Install WereCatf version of WiringOP for handling pin/pen interrupt:
 https://github.com/WereCatf/WiringOP
 ```
 
-Run:
+Compile using:
 ```
 $ make
+```
+
+Calibrate touch screen:
+```
+$ ./build/ADS7846-X11 --cal
+```
+
+Run:
+```
 $ ./build/ADS7846-X11
 ```
 
