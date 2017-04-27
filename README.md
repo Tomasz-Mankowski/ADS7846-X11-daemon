@@ -21,7 +21,7 @@ How to:
 
 Install WereCatf version of WiringOP for handling pin/pen interrupt and X11 dependencies:
 ```
-$apt-get install libx11-dev libxtst-dev
+$ apt-get install libx11-dev libxtst-dev
 $ git clone https://github.com/zhaolei/WiringOP.git -b h3 
 $ chmod +x ./WiringOP/build
 $ ./WiringOP/build
