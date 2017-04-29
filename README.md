@@ -36,20 +36,20 @@ $ make
 
 Calibrate touch screen:
 ```
-$ ./build/ADS7846-X11 --cal
+$ ./ADS7846-X11 --cal
 ```
 
 Run:
 ```
-$ ./build/ADS7846-X11
+$ ./ADS7846-X11
 ```
 
 Or run it as service/daemon using:
 ```
-$ nohup ./build/ADS7846-X11 > /dev/null 2>&1 &
+$ nohup ./ADS7846-X11 > /dev/null 2>&1 &
 ```
 
 For help use:
 ```
-$ ./build/ADS7846-X11 --help
+$ ./ADS7846-X11 --help
 ```	
