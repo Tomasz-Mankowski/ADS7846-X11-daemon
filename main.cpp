@@ -44,65 +44,105 @@ char* screenName = (char*)":0.0";
 int irqPin = 6;
 char* calibFileName = (char*)"calibpoints.cal";
 int waitTime = 5;
+int delayTime = 2000;
 
 bool calibrationMode = false;
 
-void penInterrupt(void) 
+point getPosition(void)
 {
-	usleep(10000); //bruteforce debounce
-	
-	point resistance = ads->getXYdata();
-	
-	if(!digitalRead(irqPin) && resistance != point(0x000, 0xFFF))
+	if (digitalRead(irqPin))
 	{
-		//Pen down		
-		point position = touchCalib.getDisplayPoint(resistance);
-		
-		XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime );
-		XFlush(display);
-		
-		XTestFakeButtonEvent(display, 1, True, CurrentTime);
-		XFlush(display);
-		
-		while(!digitalRead(irqPin) && resistance != point(0x000, 0xFFF))
+		return point(-1,-1);
+	}
+
+	point resistance = ads->getXYdata();
+	if (resistance == point(0x000, 0xFFF))
+	{
+		return point(-1,-1);
+	}
+
+	return touchCalib.getDisplayPoint(resistance);
+}
+
+point getSmoothPosition(void)
+{
+	int validCount = 0, xAvg = 0, yAvg = 0;
+	for(int i = 0; i < 9; i++) // Odd number to prevent tie
+	{
+		point position = getPosition();
+
+		if (position.x() >= 0)
 		{
-			usleep(100000);
-			
-			if(!digitalRead(irqPin))
-			{
-				//Pen holding			
-				resistance = ads->getXYdata();
-				position = touchCalib.getDisplayPoint(resistance);
-				XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime);
-				XFlush(display);
-			}			
+			validCount++;
+			xAvg += position.x();
+			yAvg += position.y();
 		}
-		
-		//Pen up
-		XTestFakeButtonEvent(display, 1, False, CurrentTime); 
+
+		usleep(delayTime);
+	}
+
+	if (validCount < 5)
+	{
+		return point(-1,-1);
+	}
+
+	return point(xAvg / validCount, yAvg / validCount);
+}
+
+void penInterrupt(void)
+{
+	point position = getSmoothPosition();
+
+	if (position.x() < 0)
+	{
+		return;
+	}
+
+	//Pen down
+	XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime );
+	XFlush(display);
+
+	XTestFakeButtonEvent(display, 1, True, CurrentTime);
+	XFlush(display);
+
+	while(True)
+	{
+		point position = getSmoothPosition();
+
+		if (position.x() < 0)
+		{
+			//Pen up
+			XTestFakeButtonEvent(display, 1, False, CurrentTime);
+			XFlush(display);
+
+			return;
+		}
+
+		//Pen holding
+		XTestFakeMotionEvent (display, 0, position.x(), position.y(), CurrentTime);
 		XFlush(display);
 	}
 }
 
 void closeApp(int s=0)
-{	
+{
 	if(display != NULL)
 	{
-		XCloseDisplay(display); 
+		XCloseDisplay(display);
 	}
-	
+
 	if(calibFile != NULL)
 	{
-		calibFile->close();		
+		calibFile->close();
 	}
-		
+
 	if(ads != NULL)
 	{
 		delete ads;
 	}
-	
+
 	printf("All closed...\n");
-	
+
 	exit(0);
 }
 
